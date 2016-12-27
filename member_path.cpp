@@ -4,6 +4,10 @@
 #include <memory>
 #include <pre/bytes/utils.hpp>
 
+#include <boost/fusion/include/adapt_struct.hpp>
+#include <boost/fusion/include/for_each.hpp>
+//#include <pre/fusion/for_each_member.hpp>
+
 #include <chrono>
 
   namespace config {
@@ -76,6 +80,27 @@
 
   }
 
+BOOST_FUSION_ADAPT_STRUCT(config::ey_em510fxx,
+  triac_01,
+  triac_03,
+  triac_05,
+          
+  relay_25,
+  relay_26,
+  relay_27,
+
+  ai_18,
+  ai_20,
+  ai_22,
+  ai_23,
+
+  ao_07,
+  ao_09,
+  ao_11,
+  
+  slc_timeout,
+  deadtime_timeout,
+  powerup_timeout)
 
 template <class T, class Field>
 inline auto operator> (T&& lhs, Field rhs) { return lhs.*(rhs); }
@@ -83,6 +108,24 @@ inline auto operator> (T&& lhs, Field rhs) { return lhs.*(rhs); }
 // TODO: Implement type selectors like : 
 //   -> all booleans
 //   -> first / last T
+
+
+template <class FieldType>
+struct all {};
+
+
+template <class T, class FieldType>
+inline auto operator> (T&& lhs, all<FieldType> rhs) {
+  std::vector<FieldType std::remove_reference<T>::type ::* > list_of_members;
+
+//  boost::fusion::for_each(lhs, [&list_of_members](auto field){
+//    if (std::is_same<decltype(field), FieldType>::value) {
+//      list_of_members.push_back(&field);
+//    }
+//  });
+    
+  return list_of_members;
+}
 
 int main(int argc, char** argv) {
   
@@ -94,13 +137,22 @@ int main(int argc, char** argv) {
   auto some = ecolinkconf > &ey_em510fxx::triac_01 > &binary_output_config::polarity;
 
   std::cout << "Value : " << some << std::endl;
+  std::cout << "Differently : " << 
+    ecolinkconf.*(&ey_em510fxx::triac_01).*(&binary_output_config::polarity)
+  << std::endl;
+
+  std::cout << "Simply : " << 
+    ecolinkconf.triac_01.polarity
+  << std::endl;
   
   // TODO: I would like to be able to say :
   //  map(ey_em510fxx.triac_01.polarity)
   //    .to(em510_binary_representation.bo_polarities.triac_01_polarity)
 
-  //auto somes = ecolinkconf > all<binary_output_config>;
-  //static_assert(std::is_same<decltype(somes), std::vector<binary_output_config ey_em510fxx::*>>::value);
+  std::vector<binary_output_config ey_em510fxx::*> list_of_members;
+  auto somes = ecolinkconf > all<binary_output_config>{};
+  std::cout << somes.size() << std::endl;
+  static_assert(std::is_same<decltype(somes), std::vector<binary_output_config ey_em510fxx::*>>::value);
 
 
 //  map( [](auto ey_em510fxx) { return std::ref(ey_em510fxx.triac_01.polarity); })
