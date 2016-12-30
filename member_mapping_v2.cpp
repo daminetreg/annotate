@@ -1,5 +1,6 @@
 #include <iostream>
 #include <utility>
+#include <boost/preprocessor/cat.hpp>
 #include <boost/endian/buffers.hpp>  // see Synopsis below
 #include <functional>
 
@@ -45,22 +46,28 @@ namespace config {
  */
 
 
-template <class T, class lbda, const lbda* dada>
+template <class T, class MappedField>
 struct binary : public T {
 
-  auto mapped_to() {
-    return *dada;
-  }
+  template<class A>
+  constexpr auto ref_to_mapped(A& o) { return MappedField::get(o); }
 };
+
+#define BINARY_FIELD(SIZE, FIELD, MAPPING)                                     \
+  struct BOOST_PP_CAT(FIELD, _mapping) {                                       \
+    template <class T>                                                         \
+    static auto get(T& o) { return std::ref(o. MAPPING ); }                    \
+  };                                                                           \
+  binary< big_int8_buf_t, BOOST_PP_CAT(FIELD, _mapping) > triac_01_pulse_duration;  \
 
 
 /* 
  * binary serialization domain
  */
-auto some = [](auto& o){ return std::ref(o.triac_01.pulse_duration); };
 struct em510_config {
 
-  binary< big_int8_buf_t, decltype(some), &some > triac_01_pulse_duration;
+  struct some { template <class T> static auto get(T& o) { return std::ref(o.triac_01.pulse_duration); } };
+  binary< big_int8_buf_t, some > triac_01_pulse_duration;
 
 };
 
@@ -70,7 +77,7 @@ int main(int argc, char** argv) {
   std::cout << int(internal.triac_01.pulse_duration) << std::endl;
   
   em510_config cfg;
-  cfg.triac_01_pulse_duration.mapped_to()(internal).get() = 120;
+  cfg.triac_01_pulse_duration.ref_to_mapped(internal).get() = 120;
 
   std::cout << int(internal.triac_01.pulse_duration) << std::endl;
 
