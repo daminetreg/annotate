@@ -246,7 +246,7 @@ struct em510_binary_representation {
     return dst;
   }
 
-  big_int8_buf_t triac_01_pulse_duration;
+  big_int8_buf_t triac_01_pulse_duration; 
   big_int8_buf_t triac_03_pulse_duration;
   big_int8_buf_t triac_05_pulse_duration;
 
