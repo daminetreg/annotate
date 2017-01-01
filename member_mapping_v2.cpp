@@ -60,10 +60,17 @@ constexpr size_t operator "" _byte(unsigned long long val) { return val; }
 
 #define mapping_for(member_pointer) mapping<decltype(member_pointer), member_pointer>
 
+/**
+ * Rationale : The anchor_LINE typedef is made of a METAPARSE_STRING because this way we get an unique type for each
+ *             field, based on their name. We cannot rely on the field member pointer, as it doesn't work for bitfields,
+ *             and our first target for this member mapping library is binary serialization. And we want to map smaller than
+ *             a byte.
+ */ 
 #define member_map(srcpath, dest, destpath)                                                                      \
   typedef BOOST_METAPARSE_STRING(BOOST_PP_STRINGIZE(srcpath)) BOOST_PP_CAT(anchor_ , __LINE__);                  \
   void fill(BOOST_PP_CAT(anchor_ , __LINE__), dest& d) const { d. destpath = srcpath; }                          \
   void update(BOOST_PP_CAT(anchor_ , __LINE__), const dest& d) { srcpath = d. destpath; }                        \
+
 
 
 //template<const std::uintptr_t address>
