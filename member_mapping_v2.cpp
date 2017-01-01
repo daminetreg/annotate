@@ -2,6 +2,11 @@
 #include <utility>
 #include <boost/preprocessor/cat.hpp>
 #include <boost/preprocessor/stringize.hpp>
+#include <boost/preprocessor/seq.hpp>
+#include <boost/preprocessor/tuple/elem.hpp>
+#include <boost/preprocessor/punctuation/remove_parens.hpp>
+#include <boost/preprocessor/facilities/expand.hpp>
+#include <boost/mpl/range_c.hpp>
 #include <boost/fusion/include/adapt_struct.hpp>
 #include <boost/endian/buffers.hpp>  // see Synopsis below
 #include <functional>
@@ -66,10 +71,34 @@ constexpr size_t operator "" _byte(unsigned long long val) { return val; }
  *             and our first target for this member mapping library is binary serialization. And we want to map smaller than
  *             a byte.
  */ 
-#define member_map(srcpath, dest, destpath)                                                                      \
-  typedef BOOST_METAPARSE_STRING(BOOST_PP_STRINGIZE(srcpath)) BOOST_PP_CAT(anchor_ , __LINE__);                  \
-  void fill(BOOST_PP_CAT(anchor_ , __LINE__), dest& d) const { d. destpath = srcpath; }                          \
-  void update(BOOST_PP_CAT(anchor_ , __LINE__), const dest& d) { srcpath = d. destpath; }                        \
+#define member_map(id, srcpath, destpath)                                                                      \
+  typedef BOOST_METAPARSE_STRING(BOOST_PP_STRINGIZE(srcpath)) BOOST_PP_CAT(anchor_ , id);                  \
+  void fill(BOOST_PP_CAT(anchor_ , id), const src_type& s, dest_type& d) const { d. destpath = s. srcpath; }                          \
+  void update(BOOST_PP_CAT(anchor_ , id), src_type& s, const dest_type& d) { s. srcpath = d. destpath; }                        \
+
+
+template <class SRC, class DEST>
+struct member_mapping : public std::false_type {};
+
+#define MEMBER_MAPPINGS_ON_EACH(r, data, elem) \
+  member_map( r,  BOOST_PP_TUPLE_ELEM( 2, 0, elem), BOOST_PP_TUPLE_ELEM(2, 1, elem) )
+
+#define MAKE_ELEM_ID(r, data, elem) \
+  , BOOST_PP_CAT(anchor_ , r)
+
+   
+#define map_to(SRC_TYPE, DEST_TYPE, MAPPINGS)                   \
+  template<>                                                    \
+  struct member_mapping<SRC_TYPE, DEST_TYPE> {                  \
+                                                                \
+    typedef SRC_TYPE src_type;                                  \
+    typedef DEST_TYPE dest_type;                                \
+                                                                \
+                                                                \
+    typedef boost::mpl::range_c<size_t, 2, 1 + BOOST_PP_SEQ_SIZE(MAPPINGS)> mappings; \
+                                                                \
+    BOOST_PP_SEQ_FOR_EACH(MEMBER_MAPPINGS_ON_EACH, _, MAPPINGS )    \
+  };                                                            \
 
 
 
@@ -84,8 +113,6 @@ constexpr size_t operator "" _byte(unsigned long long val) { return val; }
  * binary serialization domain
  */
 struct binary_representation {
-
-  typedef binary_representation _self; // Need to be solved (as with qi grammar base_type ?)
 
   uint8_t pulse_for_triac01;
   uint8_t pulse_for_triac03;
@@ -103,23 +130,26 @@ struct binary_representation {
     uint8_t reserved_at_end                   : 3_bits;
   } bo_polarities;
 
+ // member_map(pulse_for_triac01, config::ey_em510fxx, triac_01.pulse_duration );
+ // member_map(pulse_for_triac03, config::ey_em510fxx, triac_03.pulse_duration );
+ // member_map(pulse_for_triac05, config::ey_em510fxx, triac_05.pulse_duration );
+ // member_map(bo_polarities.triac_01, config::ey_em510fxx, triac_01.polarity);
+ // member_map(bo_polarities.triac_03, config::ey_em510fxx, triac_03.polarity);
+ // member_map(bo_polarities.triac_05, config::ey_em510fxx, triac_05.polarity);
 
-  member_map(pulse_for_triac01, config::ey_em510fxx, triac_01.pulse_duration );
-  member_map(pulse_for_triac03, config::ey_em510fxx, triac_03.pulse_duration );
-  member_map(pulse_for_triac05, config::ey_em510fxx, triac_05.pulse_duration );
-  member_map(bo_polarities.triac_01, config::ey_em510fxx, triac_01.polarity);
-  member_map(bo_polarities.triac_03, config::ey_em510fxx, triac_03.polarity);
-  member_map(bo_polarities.triac_05, config::ey_em510fxx, triac_05.polarity);
-
-
+  friend struct member_mapping<binary_representation, config::ey_em510fxx>;
 };
 
-BOOST_FUSION_ADAPT_STRUCT(binary_representation,
-  pulse_for_triac01,
-  pulse_for_triac03,
-  pulse_for_triac05,
-  bo_polarities);
-
+  // Working 
+  
+  map_to(binary_representation, config::ey_em510fxx,
+    ((pulse_for_triac01, triac_01.pulse_duration))
+    ((pulse_for_triac03, triac_03.pulse_duration))
+    ((pulse_for_triac05, triac_05.pulse_duration))
+    ((bo_polarities.triac_01, triac_01.polarity))
+    ((bo_polarities.triac_03, triac_03.polarity))
+    ((bo_polarities.triac_05, triac_05.polarity))
+  );
 
 int main(int argc, char** argv) {
 
