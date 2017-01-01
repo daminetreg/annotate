@@ -70,9 +70,11 @@ constexpr size_t operator "" _byte(unsigned long long val) { return val; }
  *             field, based on their name. We cannot rely on the field member pointer, as it doesn't work for bitfields,
  *             and our first target for this member mapping library is binary serialization. And we want to map smaller than
  *             a byte.
+ *
+ * typedef BOOST_METAPARSE_STRING(BOOST_PP_STRINGIZE(srcpath)) BOOST_PP_CAT(anchor_ , id);                  \
  */ 
 #define member_map(id, srcpath, destpath)                                                                      \
-  typedef BOOST_METAPARSE_STRING(BOOST_PP_STRINGIZE(srcpath)) BOOST_PP_CAT(anchor_ , id);                  \
+  typedef std::integral_constant<size_t, id> BOOST_PP_CAT(anchor_ , id);                  \
   void fill(BOOST_PP_CAT(anchor_ , id), const src_type& s, dest_type& d) const { d. destpath = s. srcpath; }                          \
   void update(BOOST_PP_CAT(anchor_ , id), src_type& s, const dest_type& d) { s. srcpath = d. destpath; }                        \
 
