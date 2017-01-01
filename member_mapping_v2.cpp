@@ -1,8 +1,14 @@
 #include <iostream>
 #include <utility>
 #include <boost/preprocessor/cat.hpp>
+#include <boost/preprocessor/stringize.hpp>
+#include <boost/fusion/include/adapt_struct.hpp>
 #include <boost/endian/buffers.hpp>  // see Synopsis below
 #include <functional>
+#include <array>
+
+#include <boost/metaparse/string.hpp>
+#include <boost/type_index.hpp>
 
 using namespace boost::endian;
 
@@ -44,44 +50,85 @@ namespace config {
 /*
  * Binary toolkit
  */
+constexpr size_t operator "" _bits(unsigned long long val) { return val; }
+constexpr size_t operator "" _byte(unsigned long long val) { return val; }
 
 
-template <class T, class MappedField>
-struct binary : public T {
+  template <class T, const T>
+  struct mapping {};
 
-  template<class A>
-  constexpr auto ref_to_mapped(A& o) { return MappedField::get(o); }
-};
 
-#define BINARY_FIELD(SIZE, FIELD, MAPPING)                                     \
-  struct BOOST_PP_CAT(FIELD, _mapping) {                                       \
-    template <class T>                                                         \
-    static auto get(T& o) { return std::ref(o. MAPPING ); }                    \
-  };                                                                           \
-  binary< big_int8_buf_t, BOOST_PP_CAT(FIELD, _mapping) > triac_01_pulse_duration;  \
+#define mapping_for(member_pointer) mapping<decltype(member_pointer), member_pointer>
 
+#define member_map(srcpath, dest, destpath)                                                                      \
+  typedef BOOST_METAPARSE_STRING(BOOST_PP_STRINGIZE(srcpath)) BOOST_PP_CAT(anchor_ , __LINE__);                  \
+  void fill(BOOST_PP_CAT(anchor_ , __LINE__), dest& d) const { d. destpath = srcpath; }                          \
+  void update(BOOST_PP_CAT(anchor_ , __LINE__), const dest& d) { srcpath = d. destpath; }                        \
+
+
+//template<const std::uintptr_t address>
+//struct annotate_id {
+//  static constexpr std::uintptr_t address = address;
+//};
+//
+//#define annotate(T) annotate_id< __LINE__ >; T
 
 /* 
  * binary serialization domain
  */
-struct em510_config {
+struct binary_representation {
 
-  struct some { template <class T> static auto get(T& o) { return std::ref(o.triac_01.pulse_duration); } };
-  binary< big_int8_buf_t, some > triac_01_pulse_duration;
+  typedef binary_representation _self; // Need to be solved (as with qi grammar base_type ?)
+
+  uint8_t pulse_for_triac01;
+  uint8_t pulse_for_triac03;
+  uint8_t pulse_for_triac05;
+
+
+  struct alignas(1_byte) {
+    
+    uint8_t reserved                          : 2_bits;
+    
+    bool triac_01                             : 1_bits;
+    bool triac_03                             : 1_bits;
+    bool triac_05                             : 1_bits;
+
+    uint8_t reserved_at_end                   : 3_bits;
+  } bo_polarities;
+
+
+  member_map(pulse_for_triac01, config::ey_em510fxx, triac_01.pulse_duration );
+  member_map(pulse_for_triac03, config::ey_em510fxx, triac_03.pulse_duration );
+  member_map(pulse_for_triac05, config::ey_em510fxx, triac_05.pulse_duration );
+  member_map(bo_polarities.triac_01, config::ey_em510fxx, triac_01.polarity);
+  member_map(bo_polarities.triac_03, config::ey_em510fxx, triac_03.polarity);
+  member_map(bo_polarities.triac_05, config::ey_em510fxx, triac_05.polarity);
+
 
 };
 
+BOOST_FUSION_ADAPT_STRUCT(binary_representation,
+  pulse_for_triac01,
+  pulse_for_triac03,
+  pulse_for_triac05,
+  bo_polarities);
+
+
 int main(int argc, char** argv) {
+
+  std::cout << boost::typeindex::type_id_with_cvr<BOOST_METAPARSE_STRING("Hello")>() << std::endl;
+ // auto now = (std::uintptr_t)(&binary_representation::pulse_for_triac01);
+
   config::ey_em510fxx internal{};
 
   std::cout << int(internal.triac_01.pulse_duration) << std::endl;
   
-  em510_config cfg;
-  cfg.triac_01_pulse_duration.ref_to_mapped(internal).get() = 120;
+  binary_representation bin;
 
   std::cout << int(internal.triac_01.pulse_duration) << std::endl;
 
-  static_assert(sizeof(cfg) == 1, "TOO BIG");
+  std::cout << "sizeof(bin)" << sizeof(bin) << std::endl; 
+//  static_assert(sizeof(bin) == 4, "TOO BIG");
 
 
   return 0;

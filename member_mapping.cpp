@@ -1,6 +1,7 @@
 #include <iostream>
 #include <utility>
 #include <typeinfo>
+#include <tuple>
 #include <boost/endian/buffers.hpp>  // see Synopsis below
 
 using namespace boost::endian;
@@ -38,9 +39,9 @@ namespace config {
 template<class T, class... Members>
 struct member_path : public std::tuple<Members...> {
 
-  auto operator()(const T& to_access) {
-    return to_access.*(Members...);
-  }
+//  auto operator()(const T& to_access) {
+//    return to_access.*(Members...);
+//  }
 };
 
 
