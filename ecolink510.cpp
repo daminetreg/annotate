@@ -264,6 +264,31 @@ struct em510_binary_representation {
   endian_buffer<order::big, bo_safety_values_t, sizeof(bo_safety_values_t)*CHAR_BIT> bo_safety_values;
 };
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 const char* filename = "test.dat";
 
 // Boost endian hack
