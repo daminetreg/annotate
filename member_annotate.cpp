@@ -70,13 +70,27 @@ struct map_to {
 
 
 
+// Easier syntax
 
+#define 📃(field) \
+  field; using BOOST_PP_CAT(anchor_, __LINE__ ) = BOOST_METAPARSE_STRING(BOOST_PP_STRINGIZE(field)); \
+  auto& BOOST_PP_CAT(get_anchor_, __LINE__ )() { return field; }
 
+  
+#define 📒(...) \
+  auto get_annotations( BOOST_PP_CAT(anchor_, __LINE__ ) ) { \
+                                                                                                                     \
+    return std::make_tuple(                                                                                                         \
+       bool{} BOOST_PP_SEQ_FOR_EACH(get_annotations_on_each, unused,                                                   \
+       BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__) )                    \
+    );                                                                                                               \
+  }
 
-
-
-
-
+#define member_mapv3(dsttype, dstpath)                                     \
+  (map_to< void( decltype(*this)& src, const dsttype& dst ) , void( decltype(*this)& src, dsttype& dst ) > {\
+    [this]( decltype(*this)& src, const dsttype& dst ) { BOOST_PP_CAT(get_anchor_, __LINE__ )() = dst. dstpath; }, \
+    [this]( decltype(*this)& src, dsttype& dst ) { dst. dstpath = BOOST_PP_CAT(get_anchor_, __LINE__ )(); } \
+  })
 
 
 
@@ -130,9 +144,12 @@ namespace config {
 struct binary_representation {
   annotated(pulse_for_triac01, pulse_for_triac03, bo_polarities)
 
-  📜(pulse_for_triac01,
-      member_map(pulse_for_triac01, config::ey_em510fxx, triac_01.pulse_duration) , jsonize{} )
-  uint8_t pulse_for_triac01;
+  uint8_t 📃(pulse_for_triac01); 📒(member_mapv3(config::ey_em510fxx, triac_01.pulse_duration))
+
+
+  //📜(pulse_for_triac01,
+  //    member_map(pulse_for_triac01, config::ey_em510fxx, triac_01.pulse_duration) , jsonize{} )
+  //uint8_t pulse_for_triac01;
 
   📜(pulse_for_triac03, 
       member_map(pulse_for_triac01, config::ey_em510fxx, triac_03.pulse_duration), jsonize{} )
@@ -190,6 +207,8 @@ struct binary_representation {
 
 
 int main(int argc, char** argv) {
+
+  std::cout << typeid(BOOST_METAPARSE_STRING("triac_01_pulse_duration")).name() << std::endl ;
 
   config::ey_em510fxx internal{};
 
